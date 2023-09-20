@@ -1,24 +1,25 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 # Developer note: near.gitignore will be renamed to .gitignore upon project creation
-# dependencies
+# DEPENDENCIES
 node_modules
 /.pnp
 .pnp.js
 
-# build
+# BUILD
 /out
 /dist
+/neardev
 
-# keys
+# KEYS
 /templates/react/neardev
 
-# testing
+# TESTING
 /coverage
 
-# production
+# PRODUCTION
 /build
 
-# misc
+# MISC
 .DS_Store
 .env.local
 .env.development.local
