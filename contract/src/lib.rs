@@ -2,7 +2,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
 use near_sdk::env::{predecessor_account_id, random_seed};
 use near_sdk::serde_json::json;
-use near_sdk::{env, log, near_bindgen, AccountId, Gas, Promise, PromiseError};
+use near_sdk::{env, log, near_bindgen, require, AccountId, Gas, Promise, PromiseError};
 
 pub mod external;
 pub use crate::external::*;
@@ -29,10 +29,12 @@ impl Default for Contract {
 impl Contract {
     // Public - query external greeting
     pub fn evaluate_hello_near(&mut self, contract_account_id: AccountId) -> Promise {
-        assert!(
+        require!(
             self.evaluating_sub_account(&contract_account_id),
-            "Please deploy contract as sub account. such as hello_near.{}",
-            contract_account_id
+            format!(
+                "Please deploy contract as sub account. Such as hello_near.{}",
+                env::predecessor_account_id()
+            ),
         );
 
         // First let's get a random string from random seed
@@ -40,10 +42,12 @@ impl Contract {
         let random_string: String = String::from_utf8_lossy(&get_array).to_string();
         println!("the random string is {:?}", random_string);
 
-        let args = json!({ "message": random_string }).to_string().into_bytes();
+        let args = json!({ "greeting": random_string })
+            .to_string()
+            .into_bytes();
 
         Promise::new(contract_account_id.clone())
-            .function_call("set_greeting".to_string(), args, NO_DEPOSIT, Gas(5 * TGAS))
+            .function_call("set_greeting".to_string(), args, NO_DEPOSIT, Gas(15 * TGAS))
             .function_call(
                 "get_greeting".to_string(),
                 NO_ARGS,
@@ -83,8 +87,42 @@ impl Contract {
     // Account ID that's being checked is Sub-Account of the caller
     #[private]
     pub fn evaluating_sub_account(&self, account_id: &AccountId) -> bool {
-        predecessor_account_id()
+        require!(
+            account_id != &env::predecessor_account_id(),
+            "You cannot evaluate top level account"
+        );
+
+        account_id
             .as_str()
-            .contains(&account_id.as_str())
+            .contains(predecessor_account_id().as_str())
+    }
+}
+
+// UNIT TESTS
+// Note: #[private] macro doesn't expand in unit tests
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::testing_env;
+
+    fn get_context(is_view: bool) -> VMContextBuilder {
+        let mut builder = VMContextBuilder::new();
+        builder
+            .is_view(is_view)
+            .current_account_id("contract.testnet".parse().unwrap());
+        builder
+    }
+
+    #[test]
+    fn test_evaluating_sub_account() {
+        let mut context = get_context(false);
+        let contract = Contract::default();
+
+        testing_env!(context
+            .predecessor_account_id("someone.testnet".parse().unwrap())
+            .build());
+
+        assert!(contract.evaluating_sub_account(&"hello_near.someone.testnet".parse().unwrap()));
     }
 }

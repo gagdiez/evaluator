@@ -4,5 +4,5 @@ use near_sdk::ext_contract;
 #[ext_contract(hello_near)]
 trait HelloNear {
     fn get_greeting(&self) -> String;
-    fn set_greeting(&self, message: String);
+    fn set_greeting(&self, greeting: String);
 }
