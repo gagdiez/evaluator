@@ -1,100 +1,83 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
-use near_sdk::env::{predecessor_account_id, random_seed};
-use near_sdk::serde_json::json;
-use near_sdk::{env, log, near_bindgen, require, AccountId, Gas, Promise, PromiseError};
+use near_sdk::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    collections::LookupMap,
+    env::{self, predecessor_account_id, random_seed},
+    near_bindgen, require, AccountId,
+};
+
+pub use crate::constants::{REGISTRATION_COST, BASIC_EVAL_NUMBER};
+
 
 pub mod external;
 pub use crate::external::*;
-
-pub const TGAS: u64 = 1_000_000_000_000;
-pub const NO_DEPOSIT: u128 = 0;
-pub const NO_ARGS: Vec<u8> = vec![];
+mod constants;
+mod eval_guestbook;
+mod eval_hello;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    records: LookupMap<AccountId, bool>,
+    evaluations: LookupMap<AccountId, Vec<bool>>,
 }
 
 impl Default for Contract {
     fn default() -> Self {
         Self {
-            records: LookupMap::new(b"r".to_vec()),
+            evaluations: LookupMap::new(b"r".to_vec()),
         }
     }
 }
 
 #[near_bindgen]
 impl Contract {
-    // Public - query external greeting
-    pub fn evaluate_hello_near(&mut self, contract_account_id: AccountId) -> Promise {
+
+    #[payable]
+    pub fn register(&mut self) {
         require!(
-            self.evaluating_sub_account(&contract_account_id),
-            format!(
-                "Please deploy contract as sub account. Such as hello_near.{}",
-                env::predecessor_account_id()
-            ),
+            env::attached_deposit() >= REGISTRATION_COST,
+            format!("Please attach at least {} NEAR to register", REGISTRATION_COST) 
         );
 
-        // First let's get a random string from random seed
+        let account_id = env::predecessor_account_id();
+
+        require!(
+            !self.evaluations.contains_key(&account_id),
+            "You are already registered"
+        );
+
+        let evaluations = vec![false; BASIC_EVAL_NUMBER];
+
+        self.evaluations.insert(&account_id, &evaluations);
+    }
+
+    pub fn get_evaluations(&self, account_id: AccountId) -> Vec<bool> {
+        self.evaluations.get(&account_id).unwrap()
+    }
+
+    pub fn passed_all_exams(&self, account_id: AccountId) -> bool {
+        let evaluations = self.evaluations.get(&account_id).unwrap();
+        evaluations.iter().all(|&x| x)
+    }
+
+    fn assert_valid_account(&self, sub_account_id: &AccountId) {
+        let parent_id: AccountId = sub_account_id.to_string().split(".").skip(1).collect::<Vec<&str>>().join(".").parse().unwrap();
+
+        // Only parent accounts can evaluate sub-accounts
+        require!(
+            parent_id == predecessor_account_id(),
+            format!("Only {} can evaluate {}", parent_id, sub_account_id)
+        );
+
+        // Check the parent account is registered
+        require!(
+            self.evaluations.contains_key(&parent_id),
+            format!("{} is not registered", parent_id)
+        );
+    }
+
+    fn random_string(&self, seed: u8) -> String {
         let get_array: Vec<u8> = random_seed();
-        let random_string: String = String::from_utf8_lossy(&get_array).to_string();
-        println!("the random string is {:?}", random_string);
-
-        let args = json!({ "greeting": random_string })
-            .to_string()
-            .into_bytes();
-
-        Promise::new(contract_account_id.clone())
-            .function_call("set_greeting".to_string(), args, NO_DEPOSIT, Gas(15 * TGAS))
-            .function_call(
-                "get_greeting".to_string(),
-                NO_ARGS,
-                NO_DEPOSIT,
-                Gas(5 * TGAS),
-            )
-            .then(
-                Self::ext(env::current_account_id())
-                    .with_static_gas(Gas(5 * TGAS))
-                    .evaluate_hello_near_callback(random_string, contract_account_id.clone()),
-            )
-    }
-
-    #[private]
-    pub fn evaluate_hello_near_callback(
-        &mut self,
-        #[callback_result] last_result: Result<String, PromiseError>,
-        random_string: String,
-        contract_name: AccountId,
-    ) -> bool {
-        // The callback only has access to the last action's result
-        if let Ok(result) = last_result {
-            log!(format!("The last result is {result}"));
-            let output = result == random_string;
-            self.records.insert(&contract_name, &output);
-            output
-        } else {
-            log!("The batch call failed and all calls got reverted");
-            false
-        }
-    }
-
-    pub fn account_participation(&self, account_name: &AccountId) -> bool {
-        self.records.get(&account_name).unwrap_or(false)
-    }
-
-    // Account ID that's being checked is Sub-Account of the caller
-    #[private]
-    pub fn evaluating_sub_account(&self, account_id: &AccountId) -> bool {
-        require!(
-            account_id != &env::predecessor_account_id(),
-            "You cannot evaluate top level account"
-        );
-
-        account_id
-            .as_str()
-            .contains(predecessor_account_id().as_str())
+        String::from_utf8_lossy(&get_array).to_string() + &seed.to_string()
     }
 }
 
@@ -117,12 +100,25 @@ mod tests {
     #[test]
     fn test_evaluating_sub_account() {
         let mut context = get_context(false);
+        let mut contract = Contract::default();
+
+        testing_env!(context
+            .predecessor_account_id("someone.testnet".parse().unwrap())
+            .build());
+
+        contract.register();
+        contract.assert_valid_account(&"hello_near.someone.testnet".parse().unwrap());
+    }
+
+    #[test]
+    fn test_random_string() {
+        let mut context = get_context(false);
         let contract = Contract::default();
 
         testing_env!(context
             .predecessor_account_id("someone.testnet".parse().unwrap())
             .build());
 
-        assert!(contract.evaluating_sub_account(&"hello_near.someone.testnet".parse().unwrap()));
+        assert!(contract.random_string(1) != contract.random_string(2));
     }
 }
