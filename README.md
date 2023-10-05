@@ -1,22 +1,70 @@
-NEAR EVALUATOR - WIP
-==================
-WORK IN PROGRESS
+NEAR Evaluator
+==============
 
-This project aims to create a self-paced course, in which each step presents a new concept to the student, and then test the learned knowledge in a decentralized way. Once all steps are completed, the course can issue a non-transferable NFT certificate for the student.
+> This is a work in progress
 
-This can expand/add to previous educational efforts such as [NEAR ACADEMY](https://near.academy/) and NCD by NF Edu Team
+This project aims to create a tool that automatically evaluates students on NEAR smart contract development. It was concieved to be used within a larger educational project, in which students follow a self-pased course, and can automatically evaluate their gain knowledge.
+
+From a technical perspective, `NEAR Evaluator` is a smart contract that automatically evaluates other smart contracts. It works by making a cross contract calls to the contract being evaluated, and checking the data it returns.
+
+On passing all evaluations, students will be able to claim a `NEAR Certified Developer` NFT.
+
+---
+
+## Evaluation
+To be evaluated, the student needs to first call the `register` method, to register the account being evaluated. Afterwards, we will expect the student to call all methods using always the registered account, and to deploy all smart contracts in a sub-account of the registered account.
+
+### [1. Hello NEAR](contract/src/eval_hello.rs)
+Here we evaluate that the student knows how to deploy a simple smart contract. 
+
+```rs
+  evaluate_hello_near(contract_account_id: AccountId)
+```
+
+The contract makes a batch call to `contract_account_id`, calling `set_greeting` with a random string and `get_greeting`. The expected result of `get_greeting` is the random string that was set.  
 
 
-Smart Contract
-==
-The contract can evaluate other contracts. This works by making cross contract calls, in which we first pass data to the contract to be evaluated, and then we call the smart contract to see if it returns the right data.
+### [2. Guest Book](contract/src/eval_guestbook.rs)
+Here we evaluate that the student knows how to store an array of messages on a contract.
 
+```rs
+  evaluate_guestbook(contract_account_id: AccountId)
+```
 
-Front-End
-==
-TBD: BOS widgets, stand alone app or something in between  
+The contract makes a batch call to `contract_account_id`, calling `add_message` twice, and then `last_messages({last: 2})`. The contract being evaluated is expected to return the two messages that were added.  
 
+### [3. Complex Datatypes](TBD)
+Here we evaluate that the student knows how to handle types such as `AccountId`, `U64`, and `Objects`.
 
+```rs
+  evaluate_datatypes(contract_account_id: AccountId)
+```
 
-[NEAR Docs](https://docs.near.org/)<br>
-[NEAR Discord](https://near.chat/)<br>
+We make a batch call to `set_data` and `get_data`. We expect `get_data` to return a new object containing all the complex data given to `set_data`.
+
+### [4. Explicit Init](TBD)
+Here we evaluate that the student knows how to init a contract.
+
+```rs
+  evaluate_explicit_init(contract_account_id: AccountId)
+```
+
+We make a call to `get_greeting`, which we expect to fail, and then a batch call with `init` and `get_greeting`.
+
+---
+
+#### Progress Checklist
+- [x] Evaluate a `hello world` contract
+- [x] Evaluate a `guestbook` contract
+- [ ] Evaluate the input and output of complex types / objects
+- [ ] Evaluate an explicit init
+- [ ] Evaluate private and public methods
+- [ ] Evaluate the use of collections
+- [ ] Evaluate basic actions
+- [ ] Evaluate cross-contract calls
+- [ ] Implement a Simple BOS Frontend
+
+Long Term Planning
+====
+[ ] Evaluate factories
+[ ] NEP Evaluator for NFT & FT Contracts
