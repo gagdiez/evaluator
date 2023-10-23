@@ -18,12 +18,14 @@ mod eval_xcc;
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
     evaluations: LookupMap<AccountId, Vec<bool>>,
+    temp_seeds: LookupMap<AccountId, u128>,
 }
 
 impl Default for Contract {
     fn default() -> Self {
         Self {
             evaluations: LookupMap::new(b"r".to_vec()),
+            temp_seeds: LookupMap::new(b"t".to_vec()),
         }
     }
 }
