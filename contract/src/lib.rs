@@ -5,14 +5,14 @@ use near_sdk::{
     near_bindgen, require, AccountId,
 };
 
-pub use crate::constants::{REGISTRATION_COST, BASIC_EVAL_NUMBER};
-
+pub use crate::constants::{BASIC_EVAL_NUMBER, REGISTRATION_COST};
 
 pub mod external;
 pub use crate::external::*;
 mod constants;
 mod eval_guestbook;
 mod eval_hello;
+mod eval_xcc;
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -30,12 +30,14 @@ impl Default for Contract {
 
 #[near_bindgen]
 impl Contract {
-
     #[payable]
     pub fn register(&mut self) {
         require!(
             env::attached_deposit() >= REGISTRATION_COST,
-            format!("Please attach at least {} NEAR to register", REGISTRATION_COST) 
+            format!(
+                "Please attach at least {} NEAR to register",
+                REGISTRATION_COST
+            )
         );
 
         let account_id = env::predecessor_account_id();
@@ -60,7 +62,7 @@ impl Contract {
     }
 
     fn assert_valid_account(&self, sub_account_id: &AccountId) {
-        let parent_id: AccountId = sub_account_id.to_string().split(".").skip(1).collect::<Vec<&str>>().join(".").parse().unwrap();
+        let parent_id: AccountId = self.get_parent_account(&sub_account_id);
 
         // Only parent accounts can evaluate sub-accounts
         require!(
@@ -70,9 +72,24 @@ impl Contract {
 
         // Check the parent account is registered
         require!(
-            self.evaluations.contains_key(&parent_id),
+            self.check_account_registered(&parent_id),
             format!("{} is not registered", parent_id)
         );
+    }
+
+    fn get_parent_account(&self, sub_account_id: &AccountId) -> AccountId {
+        sub_account_id
+            .to_string()
+            .split(".")
+            .skip(1)
+            .collect::<Vec<&str>>()
+            .join(".")
+            .parse()
+            .unwrap()
+    }
+
+    fn check_account_registered(&self, account_id: &AccountId) -> bool {
+        self.evaluations.contains_key(&account_id)
     }
 
     fn random_string(&self, seed: u8) -> String {
@@ -120,5 +137,36 @@ mod tests {
             .build());
 
         assert!(contract.random_string(1) != contract.random_string(2));
+    }
+    #[test]
+    fn test_get_parent_account() {
+        let mut context = get_context(false);
+        let contract = Contract::default();
+
+        testing_env!(context
+            .predecessor_account_id("someone.testnet".parse().unwrap())
+            .build());
+
+        assert_eq!(
+            contract.get_parent_account(&"hello_near.someone.testnet".parse().unwrap()),
+            "someone.testnet".parse().unwrap()
+        );
+    }
+    #[test]
+    fn test_check_account_registered() {
+        let mut context = get_context(false);
+        let mut contract = Contract::default();
+
+        testing_env!(context
+            .predecessor_account_id("someone.testnet".parse().unwrap())
+            .build());
+
+        contract.register();
+
+        assert!(contract.check_account_registered(&"someone.testnet".parse().unwrap()));
+        assert_eq!(
+            contract.check_account_registered(&"hello_near.someone.testnet".parse().unwrap()),
+            false
+        );
     }
 }
