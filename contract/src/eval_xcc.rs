@@ -9,63 +9,57 @@ use crate::{
 
 #[near_bindgen]
 impl Contract {
-    // Provides a temporary seed to the students sub-account (contract)
-    pub fn provide_temp_seed(&mut self) -> U128 {
-        require!(
-            self.check_account_registered(&env::signer_account_id()),
-            "This account is not registered"
-        );
-        require!(
-            env::signer_account_id() != env::predecessor_account_id(),
-            format!(
-                "This function shall be called via XCC from a sub account such as valid.{}",
-                env::signer_account_id()
-            )
-        );
-        // TODO: Use randomness from the blockchain
-        let seed = U128(1234567890u128);
+    pub fn evaluate_xcc(&mut self, contract_account_id: AccountId) -> Promise {
+        self.assert_valid_account(&contract_account_id);
 
-        self.temp_seeds
-            .insert(&env::predecessor_account_id(), &seed.0);
+        let rand_uint = self.random_u128(0);
 
-        return seed;
-    }
-    // Evaluate XCC from the students contract to verify the temp seed
-    pub fn evaluate_xcc(&mut self) -> Promise {
-        Promise::new(env::predecessor_account_id())
+        self.temp_u128.insert(&contract_account_id, &rand_uint);
+
+        Promise::new(contract_account_id)
             .function_call(
-                "get_current_seed".to_string(),
+                "get_current_uint".to_string(),
                 NO_ARGS,
                 NO_DEPOSIT,
-                Gas(15 * TGAS),
+                Gas(40 * TGAS),
             )
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(Gas(5 * TGAS))
-                    .evaluate_current_seed(),
+                    .evaluate_current_uint(env::predecessor_account_id(), U128(rand_uint)),
             )
     }
-    // Evaluate current seed
+
+    pub fn provide_u128(&self) -> U128 {
+        U128(self.temp_u128.get(&env::predecessor_account_id()).unwrap())
+    }
+
+    // Evaluate current uint
     #[private]
-    pub fn evaluate_current_seed(
+    pub fn evaluate_current_uint(
         &mut self,
         #[callback_result] call_result: Result<U128, PromiseError>,
+        student_id: AccountId,
+        expected_uint: U128,
     ) {
         match call_result {
-            Ok(current_seed) => {
-                let expected_seed = &self.temp_seeds.get(&env::predecessor_account_id()).unwrap();
-
+            Ok(current_uint) => {
                 require!(
-                    current_seed.0 == *expected_seed,
+                    current_uint.0 == expected_uint.0,
                     format!(
-                        "Expected seed to be {}, not {}",
-                        expected_seed, current_seed.0
+                        "Expected uint to be {}, not {}",
+                        expected_uint.0, current_uint.0
                     )
                 );
-                self.temp_seeds.remove(&env::predecessor_account_id());
+
+                let mut evaluations = self.evaluations.get(&student_id).unwrap();
+                evaluations[2] = true;
+
+                self.evaluations.insert(&student_id, &evaluations);
+                self.temp_u128.remove(&env::predecessor_account_id());
             }
             Err(err) => {
-                self.temp_seeds.remove(&env::predecessor_account_id());
+                self.temp_u128.remove(&env::predecessor_account_id());
                 require!(false, format!("{:#?}", err));
             }
         }

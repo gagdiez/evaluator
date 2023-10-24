@@ -18,14 +18,14 @@ mod eval_xcc;
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
     evaluations: LookupMap<AccountId, Vec<bool>>,
-    temp_seeds: LookupMap<AccountId, u128>,
+    temp_u128: LookupMap<AccountId, u128>,
 }
 
 impl Default for Contract {
     fn default() -> Self {
         Self {
             evaluations: LookupMap::new(b"r".to_vec()),
-            temp_seeds: LookupMap::new(b"t".to_vec()),
+            temp_u128: LookupMap::new(b"t".to_vec()),
         }
     }
 }
@@ -97,6 +97,30 @@ impl Contract {
     fn random_string(&self, seed: u8) -> String {
         let get_array: Vec<u8> = random_seed();
         String::from_utf8_lossy(&get_array).to_string() + &seed.to_string()
+    }
+
+    fn random_u128(&self, seed: u8) -> u128 {
+        let random_seed = random_seed();
+        self.as_u128(random_seed.get(..16).unwrap()) + seed as u128
+    }
+
+    fn as_u128(&self, arr: &[u8]) -> u128 {
+        ((arr[0] as u128) << 0)
+            + ((arr[1] as u128) << 8)
+            + ((arr[2] as u128) << 16)
+            + ((arr[3] as u128) << 24)
+            + ((arr[4] as u128) << 32)
+            + ((arr[5] as u128) << 40)
+            + ((arr[6] as u128) << 48)
+            + ((arr[7] as u128) << 56)
+            + ((arr[8] as u128) << 64)
+            + ((arr[9] as u128) << 72)
+            + ((arr[10] as u128) << 80)
+            + ((arr[11] as u128) << 88)
+            + ((arr[12] as u128) << 96)
+            + ((arr[13] as u128) << 104)
+            + ((arr[14] as u128) << 112)
+            + ((arr[15] as u128) << 120)
     }
 }
 
