@@ -41,29 +41,23 @@ impl Contract {
         #[callback_result] call_result: Result<U128, PromiseError>,
         student_id: AccountId,
         expected_uint: U128,
-    ) {
+    ) -> bool {
+        self.temp_u128.remove(&env::predecessor_account_id());
+
+        let mut passed = false;
+
         match call_result {
             Ok(current_uint) => {
                 if current_uint.0 == expected_uint.0 {
-                    self.temp_u128.remove(&env::predecessor_account_id());
-
-                    env::panic_str(&format!(
-                        "Expected uint to be {}, not {}",
-                        expected_uint.0, current_uint.0,
-                    ));
-                }
-
-                let mut evaluations = self.evaluations.get(&student_id).unwrap();
-
-                evaluations[2] = true;
-                self.evaluations.insert(&student_id, &evaluations);
-
-                self.temp_u128.remove(&env::predecessor_account_id());
+                    let mut evaluations = self.evaluations.get(&student_id).unwrap();
+                    evaluations[2] = true;
+                    self.evaluations.insert(&student_id, &evaluations);
+                    passed = true;
+                };
             }
-            Err(err) => {
-                self.temp_u128.remove(&env::predecessor_account_id());
-                require!(false, format!("{:#?}", err));
-            }
+            _ => { }
         }
+
+        passed
     }
 }
