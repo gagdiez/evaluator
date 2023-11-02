@@ -44,18 +44,20 @@ impl Contract {
     ) {
         match call_result {
             Ok(current_uint) => {
-                require!(
-                    current_uint.0 == expected_uint.0,
-                    format!(
+                if current_uint.0 == expected_uint.0 {
+                    self.temp_u128.remove(&env::predecessor_account_id());
+
+                    env::panic_str(&format!(
                         "Expected uint to be {}, not {}",
-                        expected_uint.0, current_uint.0
-                    )
-                );
+                        expected_uint.0, current_uint.0,
+                    ));
+                }
 
                 let mut evaluations = self.evaluations.get(&student_id).unwrap();
-                evaluations[2] = true;
 
+                evaluations[2] = true;
                 self.evaluations.insert(&student_id, &evaluations);
+
                 self.temp_u128.remove(&env::predecessor_account_id());
             }
             Err(err) => {
