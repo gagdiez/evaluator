@@ -10,6 +10,7 @@ pub use crate::constants::{BASIC_EVAL_NUMBER, REGISTRATION_COST};
 pub mod external;
 pub use crate::external::*;
 mod constants;
+mod eval_complex_input;
 mod eval_guestbook;
 mod eval_hello;
 mod eval_xcc;
@@ -102,6 +103,10 @@ impl Contract {
     fn random_u128(&self, seed: u8) -> u128 {
         let random_seed = random_seed();
         self.as_u128(random_seed.get(..16).unwrap()) + seed as u128
+    }
+
+    fn random_u8(&self, seed: usize) -> u8 {
+        env::random_seed()[seed]
     }
 
     fn as_u128(&self, arr: &[u8]) -> u128 {

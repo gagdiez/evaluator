@@ -25,13 +25,16 @@ test.beforeEach(async (t) => {
   const xcc = await student.createSubAccount("xcc", { initialBalance: NEAR.parse("2 N").toJSON() });
   await xcc.deploy('./src/aux_contracts/xcc.wasm');
 
+  const ci = await student.createSubAccount("ci", { initialBalance: NEAR.parse("2 N").toJSON() });
+  await ci.deploy('./src/aux_contracts/ci.wasm');
+
   // Get wasm file path from package.json test script in folder above
   await evaluator.deploy(process.argv[2]);
   await student.call(evaluator, "register", {}, { attachedDeposit: NEAR.parse("1 N").toJSON() });
 
   // Save state for test runs, it is unique for each test
   t.context.worker = worker;
-  t.context.accounts = { root, evaluator, student, helloNear, guestBook, xcc };
+  t.context.accounts = { root, evaluator, student, helloNear, guestBook, xcc, ci };
 });
 
 
@@ -60,12 +63,18 @@ test("Test XCC", async (t) => {
   t.is(true, true);
 });
 
+test("Test Complex Input", async (t) => {
+  const { evaluator, student, ci } = t.context.accounts;
+  await student.call(evaluator, "evaluate_complex_input", { contract_account_id: ci.accountId }, { gas: "300000000000000" });
+  t.is(true, true);
+});
 
 test("Passed all tests", async (t) => {
-  const { evaluator, student, helloNear, guestBook, xcc } = t.context.accounts;
+  const { evaluator, student, helloNear, guestBook, xcc, ci } = t.context.accounts;
   await student.call(evaluator, "evaluate_hello_near", { contract_account_id: helloNear.accountId }, { gas: "300000000000000" });
   await student.call(evaluator, "evaluate_guestbook", { contract_account_id: guestBook.accountId }, { gas: "300000000000000" });
   await student.call(evaluator, "evaluate_xcc", { contract_account_id: xcc.accountId }, { gas: "300000000000000" });
+  await student.call(evaluator, "evaluate_complex_input", { contract_account_id: ci.accountId }, { gas: "300000000000000" });
   const passed = await evaluator.view('passed_all_exams', { account_id: student.accountId })
   t.is(passed, true);
 });
