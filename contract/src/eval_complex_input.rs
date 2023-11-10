@@ -34,23 +34,25 @@ impl Contract {
 
         let validator = format!("validator{}.testnet", self.random_u8(1));
 
-        let args = json!({"author": validator, "height": U64(env::block_height())})
+        let transactions = vec![
+            MockTransaction {
+                signer: "alice.testnet".parse().unwrap(),
+                action: "FunctionCall".to_string(),
+            },
+            MockTransaction {
+                signer: "bob.testnet".parse().unwrap(),
+                action: "Transfer".to_string(),
+            },
+        ];
+
+        let args = json!({"author": validator, "height": U64(env::block_height()), "transactions": transactions})
             .to_string()
             .into_bytes();
 
         let expected_mock_block = MockBlock {
             author: validator.parse().unwrap(),
             height: U64(env::block_height()),
-            transactions: vec![
-                MockTransaction {
-                    signer: contract_account_id.clone(),
-                    action: "FunctionCall".to_string(),
-                },
-                MockTransaction {
-                    signer: contract_account_id.clone(),
-                    action: "Transfer".to_string(),
-                },
-            ],
+            transactions: transactions,
         };
 
         Promise::new(contract_account_id.clone())
