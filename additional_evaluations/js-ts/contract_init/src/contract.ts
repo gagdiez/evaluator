@@ -1,5 +1,5 @@
 // Find all our documentation at https://docs.near.org
-import { NearBindgen, near, call, view } from 'near-sdk-js';
+import { NearBindgen, near, call, view, initialize } from 'near-sdk-js';
 
 @NearBindgen({})
 class HelloNear {
@@ -7,12 +7,11 @@ class HelloNear {
   // DO NOT MODIFY THE CODE ABOVE
   // ===========================================================================
 
-  // Write your init function `new` here
+  // Write your initialization function `init` here
 
 
   // DO NOT MODIFY THE CODE BELLOW
   // ===========================================================================
-
   @view({}) // This method is read-only and can be called for free
   get_greeting(): string {
     return this.greeting;

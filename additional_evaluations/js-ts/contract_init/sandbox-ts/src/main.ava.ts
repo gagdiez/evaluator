@@ -29,6 +29,12 @@ test.afterEach.always(async (t) => {
     console.log('Failed to stop the Sandbox:', error);
   });
 });
+test('initializes the greeting', async (t) => {
+  const { root, contract } = t.context.accounts;
+  await root.call(contract, 'init', { greeting: 'Hello World!' });
+  const greeting: string = await contract.view('get_greeting', {});
+  t.is(greeting, 'Hello World!');
+});
 
 test('returns the default greeting', async (t) => {
   const { contract } = t.context.accounts;

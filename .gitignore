@@ -18,6 +18,7 @@ neardev
 
 # PRODUCTION
 /build
+build
 
 # MISC
 .DS_Store
