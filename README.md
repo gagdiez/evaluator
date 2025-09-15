@@ -1,101 +1,84 @@
-near-blank-project
-==================
+NEAR Evaluator
+==============
 
-This app was initialized with [create-near-app]
+> This is a work in progress
 
+This project aims to create a tool that automatically evaluates students on NEAR smart contract development. It was intended to be used within a larger educational project, in which students follow a self-paced course, and can automatically evaluate their gain knowledge.
 
-Quick Start
-===========
+From a technical perspective, `NEAR Evaluator` is a smart contract that automatically evaluates other smart contracts. It works by making a cross contract calls to the contract being evaluated, and checking the data it returns.
 
-If you haven't installed dependencies during setup:
+On passing all evaluations, students will be able to claim a non-transferable `NEAR Certified Developer` NFT. 
 
-    npm install
+The NFT contract can be found at [evaluator-certificate-issuer](https://github.com/flmel/evaluator-certificate-issuer/)
 
+In addition to this smart contract, we also provide additional challenges in form of integration tests suite that can be used to further explore development on NEAR. 
 
-Build and deploy your contract to TestNet with a temporary dev account:
+The additional test suite can be found at [evaluator-integration-checks](https://github.com/flmel/evaluator-integration-checks/) repository.
 
-    npm run deploy
+---
 
-Test your contract:
+## Evaluation
+To be evaluated, the student needs to first call the `register` method, to register the account being evaluated. Afterwards, we will expect the student to call all methods using always the registered account, and to deploy all smart contracts in a sub-account of the registered account.
 
-    npm test
+### [1. Hello NEAR](contract/src/eval_hello.rs)
+Here we evaluate that the student knows how to deploy a simple smart contract. 
 
-If you have a frontend, run `npm start`. This will run a dev server.
+```rs
+evaluate_hello_near(contract_account_id: AccountId)
+```
 
-
-Exploring The Code
-==================
-
-1. The smart-contract code lives in the `/contract` folder. See the README there for
-   more info. In blockchain apps the smart contract is the "backend" of your app.
-2. The frontend code lives in the `/frontend` folder. `/frontend/index.html` is a great
-   place to start exploring. Note that it loads in `/frontend/index.js`,
-   this is your entrypoint to learn how the frontend connects to the NEAR blockchain.
-3. Test your contract: `npm test`, this will run the tests in `integration-tests` directory.
+The contract makes a batch call to `contract_account_id`, calling `set_greeting` with a random string and `get_greeting`. The expected result of `get_greeting` is the random string that was set.  
 
 
-Deploy
-======
+### [2. Guest Book](contract/src/eval_guestbook.rs)
+Here we evaluate that the student knows how to store an array of messages on a contract.
 
-Every smart contract in NEAR has its [own associated account][NEAR accounts]. 
-When you run `npm run deploy`, your smart contract gets deployed to the live NEAR TestNet with a temporary dev account.
-When you're ready to make it permanent, here's how:
+```rs
+evaluate_guestbook(contract_account_id: AccountId)
+```
 
+The contract makes a batch call to `contract_account_id`, calling `add_message` twice, and then `last_messages({last: 2})`. The contract being evaluated is expected to return the two messages that were added.  
 
-Step 0: Install near-cli (optional)
--------------------------------------
+### [3. Complex Datatypes](contract/src/eval_complex_input.rs)
+Here we evaluate that the student knows how to handle types such as `AccountId`, `U64`, and `Objects`.
 
-[near-cli] is a command line interface (CLI) for interacting with the NEAR blockchain. It was installed to the local `node_modules` folder when you ran `npm install`, but for best ergonomics you may want to install it globally:
+```rs
+evaluate_datatypes(contract_account_id: AccountId)
+```
 
-    npm install --global near-cli
+We make a batch call to `set_data` and `get_data`. We expect `get_data` to return a new object containing all the complex data given to `set_data`.
 
-Or, if you'd rather use the locally-installed version, you can prefix all `near` commands with `npx`
+### [4. Cross Contract Calls](contract/src/eval_xcc.rs)
+Here we evaluate that the student knows how to write and call cross contract calls, and handle the returned data.
 
-Ensure that it's installed with `near --version` (or `npx near --version`)
+```rs
+evaluate_xcc(contract_account_id: AccountId)
+```
 
+### Claiming the NFT
 
-Step 1: Create an account for the contract
-------------------------------------------
+After passing all evaluations, the student can claim the NFT by calling the `claim_certificate` method. This method will check if the student has passed all evaluations, and if so, will mint the NFT on the [NFT contract](https://github.com/flmel/evaluator-integration-checks/) to the student.
 
-Each account on NEAR can have at most one contract deployed to it. If you've already created an account such as `your-name.testnet`, you can deploy your contract to `near-blank-project.your-name.testnet`. Assuming you've already created an account on [NEAR Wallet], here's how to create `near-blank-project.your-name.testnet`:
+```rs
+claim_certificate()
+``` 
+---
 
-1. Authorize NEAR CLI, following the commands it gives you:
+#### Progress Checklist
+- [x] Evaluate a `hello world` contract
+- [x] Evaluate a `guestbook` contract
+- [x] Evaluate the input and output of complex types / objects
+- [x] Evaluate an explicit init (via integration-checks tests)
+- [x] Evaluate private and public methods (via integration-checks tests)
+- [x] Handling NEAR transfers (via integration-checks tests)
+- [x] Evaluating usage of ENV variables (via integration-checks tests)
+- [x] Evaluate storage of complex data types (via integration-checks tests)
+- [ ] Evaluate the use of collections
+- [ ] Evaluate basic actions
+- [ ] Evaluate cross-contract calls
+- [ ] Implement a Simple BOS Frontend
 
-      near login
-
-2. Create a subaccount (replace `YOUR-NAME` below with your actual account name):
-
-      near create-account near-blank-project.YOUR-NAME.testnet --masterAccount YOUR-NAME.testnet
-
-Step 2: deploy the contract
----------------------------
-
-Use the CLI to deploy the contract to TestNet with your account ID.
-Replace `PATH_TO_WASM_FILE` with the `wasm` that was generated in `contract` build directory.
-
-    near deploy --accountId near-blank-project.YOUR-NAME.testnet --wasmFile PATH_TO_WASM_FILE
-
-
-Step 3: set contract name in your frontend code
------------------------------------------------
-
-Modify the line in `src/config.js` that sets the account name of the contract. Set it to the account id you used above.
-
-    const CONTRACT_NAME = process.env.CONTRACT_NAME || 'near-blank-project.YOUR-NAME.testnet'
-
-
-
-Troubleshooting
-===============
-
-On Windows, if you're seeing an error containing `EPERM` it may be related to spaces in your path. Please see [this issue](https://github.com/zkat/npx/issues/209) for more details.
-
-
-  [create-near-app]: https://github.com/near/create-near-app
-  [Node.js]: https://nodejs.org/en/download/package-manager/
-  [jest]: https://jestjs.io/
-  [NEAR accounts]: https://docs.near.org/concepts/basics/account
-  [NEAR Wallet]: https://wallet.testnet.near.org/
-  [near-cli]: https://github.com/near/near-cli
-  [gh-pages]: https://github.com/tschaub/gh-pages
-# hello-near-contract-checker
+Long Term Planning
+====
+[ ] Evaluate factories
+[ ] NEP Evaluator for NFT & FT Contracts
