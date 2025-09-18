@@ -1,22 +1,19 @@
 pub use crate::constants::{BASIC_EVAL_NUMBER, CERT_CONTRACT_ACC, REGISTRATION_COST, TGAS};
-use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_sdk::{
-    borsh::{self, BorshDeserialize, BorshSerialize},
-    collections::LookupMap,
+    near, store::LookupMap,
     env::{self, predecessor_account_id, random_seed},
-    near_bindgen, require, AccountId, Gas, Promise, ONE_NEAR,
+    require, AccountId,
 };
 
 pub mod external;
 pub use crate::external::*;
 mod constants;
-mod eval_complex_input;
-mod eval_guestbook;
+// mod eval_complex_input;
+// mod eval_guestbook;
 mod eval_hello;
-mod eval_xcc;
+// mod eval_xcc;
 
-#[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[near(contract_state)]
 pub struct Contract {
     evaluations: LookupMap<AccountId, Vec<bool>>,
     temp_u128: LookupMap<AccountId, u128>,
@@ -31,7 +28,7 @@ impl Default for Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     #[payable]
     pub fn register(&mut self) {
@@ -52,50 +49,16 @@ impl Contract {
 
         let evaluations = vec![false; BASIC_EVAL_NUMBER];
 
-        self.evaluations.insert(&account_id, &evaluations);
+        self.evaluations.insert(account_id, evaluations);
     }
 
     pub fn get_evaluations(&self, account_id: AccountId) -> Vec<bool> {
-        self.evaluations.get(&account_id).unwrap()
+        self.evaluations.get(&account_id).unwrap().to_vec()
     }
 
     pub fn passed_all_exams(&self, account_id: AccountId) -> bool {
         let evaluations = self.evaluations.get(&account_id).unwrap();
         evaluations.iter().all(|&x| x)
-    }
-
-    pub fn claim_certificate(&mut self) -> Promise {
-        let student_account_id = env::predecessor_account_id();
-
-        require!(
-            self.passed_all_exams(student_account_id.clone()),
-            "You have not passed all exams yet"
-        );
-
-        certificate_issuer::ext(CERT_CONTRACT_ACC.parse().unwrap())
-            .with_static_gas(Gas(20 * TGAS))
-            .with_attached_deposit(ONE_NEAR)
-            .nft_mint(
-                student_account_id.to_string(),
-                student_account_id,
-                TokenMetadata {
-                    title: Some("Certificate".to_string()),
-                    description: Some(
-                        "Certificate of completion for the NEAR Certified Developer Program"
-                            .to_string(),
-                    ),
-                    media: None,
-                    media_hash: None,
-                    copies: None,
-                    issued_at: None,
-                    expires_at: None,
-                    starts_at: None,
-                    updated_at: None,
-                    extra: None,
-                    reference: None,
-                    reference_hash: None,
-                },
-            )
     }
 
     fn assert_valid_account(&self, sub_account_id: &AccountId) {
@@ -126,7 +89,7 @@ impl Contract {
     }
 
     pub fn check_account_registered(&self, account_id: &AccountId) -> bool {
-        self.evaluations.contains_key(&account_id)
+        self.evaluations.contains_key(account_id)
     }
 
     pub fn get_progress(&self, account_id: AccountId) -> Vec<bool> {
@@ -217,9 +180,10 @@ mod tests {
             .predecessor_account_id("someone.testnet".parse().unwrap())
             .build());
 
+        let expected: AccountId = "someone.testnet".parse().unwrap();
         assert_eq!(
             contract.get_parent_account(&"hello_near.someone.testnet".parse().unwrap()),
-            "someone.testnet".parse().unwrap()
+            expected
         );
     }
     #[test]

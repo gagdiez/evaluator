@@ -1,14 +1,14 @@
 use near_sdk::{
     env::{self, log_str},
-    near_bindgen,
+    near,
     serde_json::json,
     AccountId, Gas, Promise, PromiseError,
 };
 
-pub use crate::constants::{NO_ARGS, NO_DEPOSIT, TGAS};
+pub use crate::constants::{NO_ARGS, NO_DEPOSIT};
 use crate::{Contract, ContractExt};
 
-#[near_bindgen]
+#[near]
 impl Contract {
     pub fn evaluate_hello_near(&mut self, contract_account_id: AccountId) -> Promise {
         self.assert_valid_account(&contract_account_id);
@@ -20,16 +20,16 @@ impl Contract {
             .into_bytes();
 
         Promise::new(contract_account_id.clone())
-            .function_call("set_greeting".to_string(), args, NO_DEPOSIT, Gas(15 * TGAS))
+            .function_call("set_greeting".to_string(), args, NO_DEPOSIT, Gas::from_tgas(15))
             .function_call(
                 "get_greeting".to_string(),
                 NO_ARGS,
                 NO_DEPOSIT,
-                Gas(5 * TGAS),
+                Gas::from_tgas(5),
             )
             .then(
                 Self::ext(env::current_account_id())
-                    .with_static_gas(Gas(5 * TGAS))
+                    .with_static_gas(Gas::from_tgas(5))
                     .evaluate_hello_near_callback(env::predecessor_account_id(), random_string),
             )
     }
@@ -50,9 +50,9 @@ impl Contract {
                 ));
                 if greeting == random_string {
                     passed = true;
-                    let mut evaluations = self.evaluations.get(&student_id).unwrap();
-                    evaluations[0] = true;
-                    self.evaluations.insert(&student_id, &evaluations);
+                    let mut student_evals = self.evaluations.get(&student_id).unwrap().clone();
+                    student_evals[0] = true;
+                    self.evaluations.set(student_id, Option::Some(student_evals));
                 };
             }
             Err(err) => {
