@@ -30,28 +30,6 @@ impl Default for Contract {
 
 #[near]
 impl Contract {
-    #[payable]
-    pub fn register(&mut self) {
-        require!(
-            env::attached_deposit() >= REGISTRATION_COST,
-            format!(
-                "Please attach at least {} NEAR to register",
-                REGISTRATION_COST
-            )
-        );
-
-        let account_id = env::predecessor_account_id();
-
-        require!(
-            !self.evaluations.contains_key(&account_id),
-            "You are already registered"
-        );
-
-        let evaluations = vec![false; BASIC_EVAL_NUMBER];
-
-        self.evaluations.insert(account_id, evaluations);
-    }
-
     pub fn get_evaluations(&self, account_id: AccountId) -> Vec<bool> {
         self.evaluations.get(&account_id).unwrap().to_vec()
     }
@@ -150,13 +128,12 @@ mod tests {
     #[test]
     fn test_evaluating_sub_account() {
         let mut context = get_context(false);
-        let mut contract = Contract::default();
+        let contract = Contract::default();
 
         testing_env!(context
             .predecessor_account_id("someone.testnet".parse().unwrap())
             .build());
 
-        contract.register();
         contract.assert_valid_account(&"hello_near.someone.testnet".parse().unwrap());
     }
 
@@ -189,13 +166,11 @@ mod tests {
     #[test]
     fn test_check_account_registered() {
         let mut context = get_context(false);
-        let mut contract = Contract::default();
+        let contract = Contract::default();
 
         testing_env!(context
             .predecessor_account_id("someone.testnet".parse().unwrap())
             .build());
-
-        contract.register();
 
         assert!(contract.check_account_registered(&"someone.testnet".parse().unwrap()));
         assert_eq!(
