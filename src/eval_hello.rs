@@ -12,11 +12,13 @@ use crate::{Contract, ContractExt};
 impl Contract {
 
     pub fn evaluate_hello_near_subaccount(&mut self, contract_account_id: AccountId) -> Promise {
-        self.assert_valid_account(&contract_account_id);
+        self.assert_is_subaccount(&contract_account_id);
         self.evaluate_hello_near(contract_account_id)
     }
 
     pub fn evaluate_hello_near(&mut self, contract_account_id: AccountId) -> Promise {
+        self.register();
+
         let random_string: String = self.random_string(1);
 
         let args = json!({ "greeting": random_string })

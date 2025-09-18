@@ -30,6 +30,17 @@ impl Default for Contract {
 
 #[near]
 impl Contract {
+    pub fn register(&mut self) {
+        let account_id = env::predecessor_account_id();
+
+        if self.evaluations.contains_key(&account_id) {
+            return;
+        }
+
+        let evaluations = vec![false; BASIC_EVAL_NUMBER];
+        self.evaluations.insert(account_id, evaluations);
+    }
+
     pub fn get_evaluations(&self, account_id: AccountId) -> Vec<bool> {
         self.evaluations.get(&account_id).unwrap().to_vec()
     }
@@ -39,19 +50,13 @@ impl Contract {
         evaluations.iter().all(|&x| x)
     }
 
-    fn assert_valid_account(&self, sub_account_id: &AccountId) {
+    fn assert_is_subaccount(&self, sub_account_id: &AccountId) {
         let parent_id: AccountId = self.get_parent_account(&sub_account_id);
 
         // Only parent accounts can evaluate sub-accounts
         require!(
             parent_id == predecessor_account_id(),
             format!("Only {} can evaluate {}", parent_id, sub_account_id)
-        );
-
-        // Check the parent account is registered
-        require!(
-            self.check_account_registered(&parent_id),
-            format!("{} is not registered", parent_id)
         );
     }
 
@@ -128,13 +133,14 @@ mod tests {
     #[test]
     fn test_evaluating_sub_account() {
         let mut context = get_context(false);
-        let contract = Contract::default();
+        let mut contract = Contract::default();
 
         testing_env!(context
             .predecessor_account_id("someone.testnet".parse().unwrap())
             .build());
 
-        contract.assert_valid_account(&"hello_near.someone.testnet".parse().unwrap());
+        contract.register();
+        contract.assert_is_subaccount(&"hello_near.someone.testnet".parse().unwrap());
     }
 
     #[test]
@@ -166,11 +172,13 @@ mod tests {
     #[test]
     fn test_check_account_registered() {
         let mut context = get_context(false);
-        let contract = Contract::default();
+        let mut contract = Contract::default();
 
         testing_env!(context
             .predecessor_account_id("someone.testnet".parse().unwrap())
             .build());
+
+        contract.register();
 
         assert!(contract.check_account_registered(&"someone.testnet".parse().unwrap()));
         assert_eq!(
